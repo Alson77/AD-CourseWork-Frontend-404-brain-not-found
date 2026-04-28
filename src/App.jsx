@@ -14,6 +14,8 @@ import InventoryManagement from './pages/InventoryManagement';
 import InvoiceGeneration from './pages/InvoiceGeneration';
 import ManageCustomers from './pages/ManageCustomers';
 import SalesHistory from './pages/SalesHistory';
+import AdminAppointments from './pages/AdminAppointments';
+import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 
 function ComingSoon({ title, breadcrumb }) {
@@ -59,12 +61,12 @@ function AppRoutes() {
       } />
       <Route path="/staff-dashboard" element={
         <ProtectedRoute allowedRoles={['Admin']}>
-          <AppLayout><ComingSoon title="Staff Dashboard" breadcrumb="Main > Staff Dashboard" /></AppLayout>
+          <AppLayout><AdminAppointments /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/admin-dashboard" element={
         <ProtectedRoute allowedRoles={['Admin']}>
-          <AppLayout><ComingSoon title="Admin Dashboard" breadcrumb="Main > Admin Dashboard" /></AppLayout>
+          <AppLayout><AdminDashboard /></AppLayout>
         </ProtectedRoute>
       } />
       <Route path="/customers" element={

@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Calendar } from 'lucide-react';
+import axios from 'axios';
+
+const API = 'http://localhost:5000';
 
 const initialForm = {
   customerName: '',
@@ -39,15 +42,20 @@ function AppointmentBooking() {
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-    setConfirmation(form);
-    setForm(initialForm);
+    try {
+      const res = await axios.post(`${API}/api/appointments`, form);
+      setConfirmation(res.data);
+      setForm(initialForm);
+    } catch (err) {
+      alert('Booking failed. Please make sure the backend is running on port 5000.');
+    }
   };
 
   return (
