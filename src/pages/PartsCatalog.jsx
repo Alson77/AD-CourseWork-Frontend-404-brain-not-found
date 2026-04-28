@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ShoppingCart, Search, Package } from 'lucide-react';
 import parts from '../data/partsData';
 
@@ -42,10 +43,10 @@ function PartsCatalog({ cart, setCart }) {
       <div className="page-header">
         <Package size={28} />
         <h1>Parts Catalog</h1>
-        <a href="/cart" className="cart-badge-link">
+        <Link to="/cart" className="cart-badge-link">
           <ShoppingCart size={22} />
           {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-        </a>
+        </Link>
       </div>
       <p className="page-desc">Browse our available vehicle parts. Use filters to find what you need.</p>
 

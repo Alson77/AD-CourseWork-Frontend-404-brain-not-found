@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { ShoppingCart, Trash2 } from 'lucide-react';
 
 function Cart({ cart, setCart }) {
@@ -30,9 +31,9 @@ function Cart({ cart, setCart }) {
         <div className="empty-state">
           <ShoppingCart size={48} style={{ color: '#d1d5db', marginBottom: '1rem' }} />
           <p>Your cart is empty.</p>
-          <a href="/catalog" className="card-btn" style={{ marginTop: '1rem', display: 'inline-flex' }}>
+          <Link to="/catalog" className="card-btn" style={{ marginTop: '1rem', display: 'inline-flex' }}>
             Browse Parts
-          </a>
+          </Link>
         </div>
       ) : (
         <>
