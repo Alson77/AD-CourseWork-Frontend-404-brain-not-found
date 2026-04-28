@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { UserCheck } from 'lucide-react';
+import axios from 'axios';
 
 const initialForm = {
   fullName: '',
@@ -37,16 +38,26 @@ function CustomerRegister() {
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-    setPreview(form);
-    setSubmitted(true);
-    setForm(initialForm);
+
+    try {
+      // Send data to backend
+      const res = await axios.post('http://localhost:5000/api/customers', form);
+      
+      // On success, show the preview
+      setPreview(res.data);
+      setSubmitted(true);
+      setForm(initialForm);
+    } catch (err) {
+      alert('Failed to register customer. Is the backend running?');
+      console.error(err);
+    }
   };
 
   return (
