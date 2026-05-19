@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FileText, Search, Printer, AlertCircle } from 'lucide-react';
-import axios from 'axios';
-
-const API = 'http://localhost:5000';
+import { FileText, Search, Printer, AlertCircle, Mail } from 'lucide-react';
+import api from '../utils/api';
+import InvoiceEmailPanel from '../components/InvoiceEmailPanel';
 
 export default function SalesHistory() {
   const [invoices, setInvoices] = useState([]);
@@ -10,17 +9,17 @@ export default function SalesHistory() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewInvoice, setViewInvoice] = useState(null);
+  const [emailInvoice, setEmailInvoice] = useState(null);
 
   const loadInvoices = async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await axios.get(`${API}/api/invoices`);
-      // Sort newest first
+      const res = await api.get('/api/invoices');
       const sorted = res.data.sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
       setInvoices(sorted);
     } catch {
-      setError('Cannot load sales history. Ensure backend is running.');
+      setError('Cannot load sales history. Ensure backend is running and you are logged in.');
     } finally {
       setLoading(false);
     }
@@ -28,27 +27,23 @@ export default function SalesHistory() {
 
   useEffect(() => { loadInvoices(); }, []);
 
-  const filteredInvoices = invoices.filter(inv => 
+  const filteredInvoices = invoices.filter(inv =>
     inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inv.id.toString().includes(searchTerm)
   );
 
   const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
 
-  // Print single invoice
   const handlePrint = (invoice) => {
     setViewInvoice(invoice);
-    setTimeout(() => {
-      window.print();
-    }, 100);
+    setEmailInvoice(null);
+    setTimeout(() => window.print(), 100);
   };
 
-  // ── Render Printable Invoice View ──────────────────────────────
   if (viewInvoice) {
     return (
       <div className="main-content" style={{ maxWidth: '860px' }}>
         <p className="page-breadcrumb">Sales &amp; Finance &gt; Sales History &gt; Print</p>
-
         <div className="no-print" style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
           <h1 className="page-title" style={{ margin: 0, flex: 1 }}>Invoice #{viewInvoice.id}</h1>
           <button className="btn-primary" onClick={() => window.print()}>
@@ -56,11 +51,10 @@ export default function SalesHistory() {
           </button>
           <button className="clear-btn" onClick={() => setViewInvoice(null)}>Back to History</button>
         </div>
-
         <div className="inv-print-area" id="invoice-preview">
           <div className="inv-print-header">
             <div>
-              <h1 className="inv-print-company">AutoParts<span>Plus</span></h1>
+              <h1 className="inv-print-company">Garage<span>Hub</span></h1>
               <p className="inv-print-address">Vehicle Parts &amp; Service Center</p>
             </div>
             <div className="inv-print-meta">
@@ -109,17 +103,14 @@ export default function SalesHistory() {
     );
   }
 
-  // ── Render History List ──────────────────────────────────────────
   return (
     <div className="main-content" style={{ maxWidth: '1100px' }}>
       <p className="page-breadcrumb">Sales &amp; Finance &gt; Sales History</p>
-      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FileText size={26} color="var(--accent)" />
           <h1 className="page-title" style={{ margin: 0 }}>Sales History</h1>
         </div>
-        
         <div className="info-card" style={{ padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}>
           <div>
             <p className="ov-label">Total Revenue Shown</p>
@@ -130,12 +121,19 @@ export default function SalesHistory() {
         </div>
       </div>
 
+      {emailInvoice && (
+        <div style={{ marginBottom: '1rem' }}>
+          <InvoiceEmailPanel invoiceId={emailInvoice.id} />
+          <button type="button" className="clear-btn" onClick={() => setEmailInvoice(null)}>Close email</button>
+        </div>
+      )}
+
       <div className="filter-bar" style={{ marginBottom: '1.5rem' }}>
         <div className="search-box" style={{ maxWidth: '400px' }}>
           <Search size={16} color="var(--text-secondary)" />
-          <input 
-            type="text" 
-            placeholder="Search by invoice # or customer name..." 
+          <input
+            type="text"
+            placeholder="Search by invoice # or customer name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -173,9 +171,12 @@ export default function SalesHistory() {
                     <td>{inv.customerName}</td>
                     <td>{inv.items?.length || 0} items</td>
                     <td style={{ fontWeight: 700, color: '#16a34a' }}>Rs. {Number(inv.total).toFixed(2)}</td>
-                    <td>
+                    <td style={{ display: 'flex', gap: '0.35rem' }}>
                       <button className="inv-action-btn edit" title="View / Print" onClick={() => handlePrint(inv)}>
                         <Printer size={14} />
+                      </button>
+                      <button className="inv-action-btn edit" title="Send email" onClick={() => setEmailInvoice(inv)}>
+                        <Mail size={14} />
                       </button>
                     </td>
                   </tr>
