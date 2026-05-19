@@ -1,22 +1,89 @@
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2 } from 'lucide-react';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
-function Cart({ cart, setCart }) {
-  const handleQtyChange = (id, delta) => {
-    setCart((prev) =>
-      prev
-        .map((item) => item.id === id ? { ...item, qty: item.qty + delta } : item)
-        .filter((item) => item.qty > 0)
-    );
+function Cart() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchCart = async () => {
+    try {
+      const res = await api.get('/api/cart');
+      setCart(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRemove = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  const handleQtyChange = async (id, delta, currentQty) => {
+    const newQty = currentQty + delta;
+    if (newQty <= 0) {
+      handleRemove(id);
+      return;
+    }
+    try {
+      await api.put(`/api/cart/${id}`, { quantity: newQty });
+      fetchCart();
+    } catch (err) {
+      alert(err.response?.data || 'Failed to update quantity');
+    }
   };
 
-  const handleClear = () => setCart([]);
+  const handleRemove = async (id) => {
+    try {
+      await api.delete(`/api/cart/${id}`);
+      fetchCart();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const handleClear = async () => {
+    // Basic clear by removing one by one or we could add a clear endpoint
+    for (const item of cart) {
+      await api.delete(`/api/cart/${item.id}`);
+    }
+    setCart([]);
+  };
+
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
+    setPlacingOrder(true);
+    setError('');
+
+    // ── Loyalty Discount: 10% automatically applied when subtotal > Rs. 5000 ──
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const discount = subtotal > 5000 ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+    const finalTotal = subtotal - discount;
+
+    try {
+      const res = await api.post('/api/orders/checkout');
+      alert(res.data?.message || 'Order placed successfully!');
+      setCart([]);
+      navigate('/customer-dashboard');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to place order. Please try again later.');
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const discount = subtotal > 5000 ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+  const total = subtotal - discount;
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
   return (
@@ -27,7 +94,11 @@ function Cart({ cart, setCart }) {
       </div>
       <p className="page-desc">Review the parts you have added before placing your order.</p>
 
-      {cart.length === 0 ? (
+      {error && <div className="error-msg" style={{marginBottom: '1rem', color: 'red'}}>{error}</div>}
+
+      {loading ? (
+        <p style={{ textAlign: 'center', padding: '2rem' }}>Loading cart...</p>
+      ) : cart.length === 0 ? (
         <div className="empty-state">
           <ShoppingCart size={48} style={{ color: '#d1d5db', marginBottom: '1rem' }} />
           <p>Your cart is empty.</p>
@@ -59,9 +130,9 @@ function Cart({ cart, setCart }) {
                     <td>Rs. {item.price.toLocaleString()}</td>
                     <td>
                       <div className="qty-control">
-                        <button onClick={() => handleQtyChange(item.id, -1)}>−</button>
+                        <button onClick={() => handleQtyChange(item.id, -1, item.qty)}>−</button>
                         <span>{item.qty}</span>
-                        <button onClick={() => handleQtyChange(item.id, +1)}>+</button>
+                        <button onClick={() => handleQtyChange(item.id, +1, item.qty)}>+</button>
                       </div>
                     </td>
                     <td><strong>Rs. {(item.price * item.qty).toLocaleString()}</strong></td>
@@ -79,13 +150,30 @@ function Cart({ cart, setCart }) {
           <div className="cart-summary">
             <div className="cart-summary-details">
               <p>Total Items: <strong>{totalItems}</strong></p>
-              <p className="cart-total">Total: <strong>Rs. {total.toLocaleString()}</strong></p>
+              {discount > 0 ? (
+                <>
+                  <p>Subtotal: <span>Rs. {subtotal.toLocaleString()}</span></p>
+                  <p style={{ color: '#16a34a', fontWeight: 600 }}>
+                    🏆 Gold Loyalty Discount (10%): <span>- Rs. {discount.toLocaleString()}</span>
+                  </p>
+                  <p className="cart-total">Total: <strong>Rs. {total.toLocaleString()}</strong></p>
+                </>
+              ) : (
+                <>
+                  {subtotal > 3000 && (
+                    <p style={{ color: '#d97706', fontSize: '0.85rem' }}>
+                      💡 Spend Rs. {(5000 - subtotal).toLocaleString()} more to unlock 10% Gold Loyalty discount!
+                    </p>
+                  )}
+                  <p className="cart-total">Total: <strong>Rs. {total.toLocaleString()}</strong></p>
+                </>
+              )}
             </div>
             <div className="cart-actions">
-              <button className="clear-btn" onClick={handleClear}>Clear Cart</button>
+              <button className="clear-btn" onClick={handleClear} disabled={placingOrder}>Clear Cart</button>
               <button className="submit-btn" style={{ width: 'auto', padding: '10px 28px' }}
-                onClick={() => alert('Order placed! (Backend integration pending)')}>
-                Place Order
+                onClick={handlePlaceOrder} disabled={placingOrder}>
+                {placingOrder ? 'Placing Order...' : 'Place Order'}
               </button>
             </div>
           </div>
