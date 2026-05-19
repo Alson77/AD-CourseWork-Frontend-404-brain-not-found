@@ -14,14 +14,15 @@ const adminSections = [
       { label: 'Home',                icon: Home,            to: '/' },
       { label: 'Manage Appointments', icon: LayoutDashboard, to: '/staff-dashboard' },
       { label: 'Analytics & Reports', icon: Users2,          to: '/admin-dashboard' },
+      { label: 'Staff Management',    icon: UserPlus,        to: '/staff' },
     ],
   },
   {
     title: 'Customer Management',
     items: [
       { label: 'Manage Customers',  icon: UsersRound, to: '/customers' },
+      { label: 'Customer Reports',  icon: BarChart2,  to: '/staff-reports' },
       { label: 'Search & Sale',     icon: Search,     to: '/catalog' },
-      { label: 'Register Customer', icon: UserPlus,   to: '/register' },
     ],
   },
   {
@@ -29,7 +30,7 @@ const adminSections = [
     items: [
       { label: 'Sales History',     icon: FileText,   to: '/sales-history' },
       { label: 'Credit Management', icon: CreditCard, to: '/credit' },
-      { label: 'Customer Reports',  icon: BarChart2,  to: '/reports' },
+      { label: 'Financial Reports', icon: BarChart2,  to: '/reports' },
       { label: 'Generate Invoice',  icon: Receipt,    to: '/invoice' },
     ],
   },
@@ -37,8 +38,10 @@ const adminSections = [
     title: 'Operations',
     items: [
       { label: 'Appointments',          icon: Calendar,      to: '/appointment' },
-      { label: 'Part Requests',         icon: Package,       to: '/part-request' },
+      { label: 'Part Requests',         icon: Package,       to: '/admin-part-requests' },
       { label: 'Inventory Management',  icon: ClipboardList, to: '/inventory' },
+      { label: 'Vendors',               icon: UsersRound,    to: '/vendors' },
+      { label: 'Purchases',             icon: FileText,      to: '/purchases' },
     ],
   },
 ];
@@ -47,6 +50,7 @@ const customerSections = [
   {
     title: 'Menu',
     items: [
+      { label: 'Dashboard',       icon: LayoutDashboard, to: '/customer-dashboard' },
       { label: 'Browse Parts',    icon: Search,    to: '/catalog' },
       { label: 'Shopping Cart',   icon: Package,   to: '/cart' },
     ],
@@ -56,16 +60,58 @@ const customerSections = [
     items: [
       { label: 'Book Appointment', icon: Calendar, to: '/appointment' },
       { label: 'Request a Part',   icon: Package,  to: '/part-request' },
-      { label: 'My Profile',       icon: UserPlus, to: '/register' },
+      { label: 'My Vehicles',      icon: Wrench,   to: '/my-vehicles' },
+    ],
+  },
+  {
+    title: 'History & Profile',
+    items: [
+      { label: 'Purchase History', icon: FileText,    to: '/purchase-history' },
+      { label: 'Service History',  icon: FileText,    to: '/service-history' },
+      { label: 'Credit Management', icon: CreditCard,  to: '/credit-status' },
+      { label: 'Reviews',          icon: MoreVertical, to: '/reviews' },
+      { label: 'My Profile',       icon: UserPlus,    to: '/my-profile' },
     ],
   },
 ];
+
+const staffSections = [
+  {
+    title: 'Main',
+    items: [
+      { label: 'Browse Parts',     icon: Search,          to: '/catalog' },
+    ],
+  },
+  {
+    title: 'Customer Management',
+    items: [
+      { label: 'Register Customer', icon: UserPlus,  to: '/staff-register' },
+      { label: 'Search Customers',  icon: Search,    to: '/customers' },
+      { label: 'Customer Reports',  icon: BarChart2, to: '/staff-reports' },
+    ],
+  },
+  {
+    title: 'Sales',
+    items: [
+      { label: 'Generate Invoice', icon: Receipt,  to: '/invoice' },
+      { label: 'Sales History',    icon: FileText, to: '/sales-history' },
+    ],
+  },
+  {
+    title: 'Services',
+    items: [
+      { label: 'Book Appointment', icon: Calendar, to: '/appointment' },
+      { label: 'Request a Part',   icon: Package,  to: '/part-request' },
+    ],
+  },
+];
+
 
 function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const sections = user?.role === 'Admin' ? adminSections : customerSections;
+  const sections = user?.role === 'Admin' ? adminSections : user?.role === 'Staff' ? staffSections : customerSections;
   const avatarLetter = user?.name?.[0]?.toUpperCase() || 'U';
 
   const handleLogout = () => {
@@ -82,14 +128,14 @@ function Sidebar() {
           <Wrench size={17} />
         </div>
         <div className="sb-logo-text">
-          <span className="sb-logo-main">AutoParts</span>
-          <span className="sb-logo-accent">Plus</span>
+          <span className="sb-logo-main">Garage</span>
+          <span className="sb-logo-accent">Hub</span>
         </div>
       </div>
 
       {/* ── Role Badge ── */}
       <div className="sb-role-badge">
-        <span className={`sb-role ${user?.role === 'Admin' ? 'admin' : 'customer'}`}>
+        <span className={`sb-role ${user?.role === 'Admin' ? 'admin' : user?.role === 'Staff' ? 'admin' : 'customer'}`}>
           {user?.role || 'Guest'}
         </span>
       </div>
