@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import axios from 'axios';
-
-const API = 'http://localhost:5000';
+import api from '../utils/api';
 
 const statusColor = {
   Pending:   { bg: '#fef9c3', color: '#854d0e', label: '⏳ Pending' },
@@ -20,7 +18,7 @@ export default function AdminAppointments() {
   const load = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API}/api/appointments`);
+      const res = await api.get('/api/appointments');
       setAppointments(res.data.sort((a, b) => new Date(b.bookedAt) - new Date(a.bookedAt)));
     } catch {
       setError('Cannot load appointments. Is the backend running on port 5000?');
@@ -36,7 +34,7 @@ export default function AdminAppointments() {
   const updateStatus = async (id, newStatus) => {
     try {
       setUpdating(id);
-      const res = await axios.put(`${API}/api/appointments/${id}/status`, { status: newStatus });
+      const res = await api.put(`/api/appointments/${id}/status`, { status: newStatus });
       setAppointments(prev => prev.map(a => a.id === id ? res.data : a));
       flash(`Appointment #${id} marked as ${newStatus}.`);
     } catch {

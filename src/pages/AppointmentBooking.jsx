@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import { Calendar } from 'lucide-react';
-import axios from 'axios';
-
-const API = 'http://localhost:5000';
-
-const initialForm = {
-  customerName: '',
-  vehicleNumber: '',
-  serviceType: '',
-  preferredDate: '',
-  preferredTime: '',
-  issueDescription: '',
-};
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const serviceTypes = [
   'General Servicing',
@@ -19,12 +9,24 @@ const serviceTypes = [
   'Brake Repair',
   'Oil Change',
   'Parts Replacement',
+  'Battery Check',
+  'Clutch Inspection',
 ];
 
 function AppointmentBooking() {
-  const [form, setForm] = useState(initialForm);
+  const { user } = useAuth();
+  const [form, setForm] = useState({
+    customerName: user?.name || '',
+    vehicleNumber: '',
+    vehicleModel: '',
+    serviceType: '',
+    preferredDate: '',
+    preferredTime: '',
+    issueDescription: '',
+  });
   const [errors, setErrors] = useState({});
   const [confirmation, setConfirmation] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const newErrors = {};
@@ -49,12 +51,15 @@ function AppointmentBooking() {
       setErrors(validationErrors);
       return;
     }
+    setSubmitting(true);
     try {
-      const res = await axios.post(`${API}/api/appointments`, form);
+      const res = await api.post('/api/appointments', form);
       setConfirmation(res.data);
-      setForm(initialForm);
+      setForm({ customerName: user?.name || '', vehicleNumber: '', vehicleModel: '', serviceType: '', preferredDate: '', preferredTime: '', issueDescription: '' });
     } catch (err) {
-      alert('Booking failed. Please make sure the backend is running on port 5000.');
+      alert(err.response?.data?.message || 'Booking failed. Please make sure the backend is running.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -85,29 +90,21 @@ function AppointmentBooking() {
         <div className="form-row">
           <div className="form-group">
             <label>Customer Name *</label>
-            <input
-              type="text"
-              name="customerName"
-              value={form.customerName}
-              onChange={handleChange}
-              placeholder="e.g. Jane Smith"
-            />
+            <input type="text" name="customerName" value={form.customerName} onChange={handleChange} placeholder="e.g. Jane Smith" />
             {errors.customerName && <span className="error-msg">{errors.customerName}</span>}
           </div>
           <div className="form-group">
             <label>Vehicle Number *</label>
-            <input
-              type="text"
-              name="vehicleNumber"
-              value={form.vehicleNumber}
-              onChange={handleChange}
-              placeholder="e.g. BA 1 CHA 1234"
-            />
+            <input type="text" name="vehicleNumber" value={form.vehicleNumber} onChange={handleChange} placeholder="e.g. BA 1 CHA 1234" />
             {errors.vehicleNumber && <span className="error-msg">{errors.vehicleNumber}</span>}
           </div>
         </div>
 
         <div className="form-row">
+          <div className="form-group">
+            <label>Vehicle Model</label>
+            <input type="text" name="vehicleModel" value={form.vehicleModel} onChange={handleChange} placeholder="e.g. Toyota Corolla 2020" />
+          </div>
           <div className="form-group">
             <label>Service Type *</label>
             <select name="serviceType" value={form.serviceType} onChange={handleChange}>

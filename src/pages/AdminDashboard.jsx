@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BarChart2, TrendingUp, Users, Package, AlertTriangle } from 'lucide-react';
-import axios from 'axios';
-
-const API = 'http://localhost:5000';
+import { BarChart2, TrendingUp, Users, Package, AlertTriangle, Calendar, CreditCard, Briefcase, Truck } from 'lucide-react';
+import api from '../utils/api';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalRevenue: 0, totalInvoices: 0,
     totalCustomers: 0, lowStockParts: [], totalParts: 0,
+    totalStaff: 0, totalVendors: 0, totalAppointments: 0, pendingCredits: 0
   });
   const [recentInvoices, setRecentInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,18 +14,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [partsRes, invoicesRes, customersRes] = await Promise.allSettled([
-          axios.get(`${API}/api/parts`),
-          axios.get(`${API}/api/invoices`),
-          axios.get(`${API}/api/customers`),
+        const [partsRes, invoicesRes, customersRes, staffRes, vendorsRes, apptsRes] = await Promise.allSettled([
+          api.get('/api/parts'),
+          api.get('/api/invoices'),
+          api.get('/api/customers'),
+          api.get('/api/staff'),
+          api.get('/api/vendors'),
+          api.get('/api/appointments'),
         ]);
 
         const parts     = partsRes.status     === 'fulfilled' ? partsRes.value.data     : [];
         const invoices  = invoicesRes.status  === 'fulfilled' ? invoicesRes.value.data  : [];
         const customers = customersRes.status === 'fulfilled' ? customersRes.value.data : [];
+        const staff     = staffRes.status     === 'fulfilled' ? staffRes.value.data     : [];
+        const vendors   = vendorsRes.status   === 'fulfilled' ? vendorsRes.value.data   : [];
+        const appts     = apptsRes.status     === 'fulfilled' ? apptsRes.value.data     : [];
 
-        const lowStock  = parts.filter(p => p.stockQuantity <= 5);
+        const lowStock  = parts.filter(p => p.stockQuantity < 10);
         const revenue   = invoices.reduce((s, inv) => s + inv.total, 0);
+        const pending   = customers.reduce((s, c) => s + (c.pendingCredit || 0), 0);
         const recent    = invoices.sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate)).slice(0, 5);
 
         setStats({
@@ -35,10 +41,14 @@ export default function AdminDashboard() {
           totalCustomers: customers.length,
           lowStockParts:  lowStock,
           totalParts:     parts.length,
+          totalStaff:     staff.filter(s => s.isActive).length,
+          totalVendors:   vendors.length,
+          totalAppointments: appts.length,
+          pendingCredits: pending
         });
         setRecentInvoices(recent);
-      } catch {
-        // Graceful — shows zeros if backend not reachable
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -51,6 +61,10 @@ export default function AdminDashboard() {
     { label: 'Total Invoices',  value: stats.totalInvoices,                    icon: <BarChart2 size={24} />,  bg: '#dbeafe', color: '#1e40af' },
     { label: 'Customers',       value: stats.totalCustomers,                   icon: <Users size={24} />,      bg: '#ede9fe', color: '#5b21b6' },
     { label: 'Parts in Stock',  value: stats.totalParts,                       icon: <Package size={24} />,    bg: '#fef3c7', color: '#92400e' },
+    { label: 'Appointments',    value: stats.totalAppointments,                icon: <Calendar size={24} />,   bg: '#ffedd5', color: '#c2410c' },
+    { label: 'Pending Credits', value: `Rs. ${stats.pendingCredits.toFixed(2)}`, icon: <CreditCard size={24} />, bg: '#ffe4e6', color: '#be123c' },
+    { label: 'Active Staff',    value: stats.totalStaff,                       icon: <Briefcase size={24} />,  bg: '#e0f2fe', color: '#0369a1' },
+    { label: 'Vendors',         value: stats.totalVendors,                     icon: <Truck size={24} />,      bg: '#f3e8ff', color: '#7e22ce' },
   ];
 
   return (
@@ -67,13 +81,13 @@ export default function AdminDashboard() {
       ) : (
         <>
           {/* Stat Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
             {statCards.map(c => (
               <div key={c.label} className="info-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
                 <div style={{ width: 46, height: 46, borderRadius: 12, background: c.bg, color: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</div>
                 <div>
                   <p className="ov-label">{c.label}</p>
-                  <p style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1, marginTop: '4px' }}>{c.value}</p>
+                  <p style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1, marginTop: '4px' }}>{c.value}</p>
                 </div>
               </div>
             ))}
