@@ -1,28 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Search, Package } from 'lucide-react';
-import parts from '../data/partsData';
+import api from '../utils/api';
 
-const categories = ['All', 'Engine', 'Brakes', 'Electrical', 'Cooling', 'Suspension', 'Transmission'];
+const categories = ['All', 'Engine', 'Brakes', 'Electrical', 'Cooling', 'Suspension', 'Transmission', 'Filters'];
 
-function PartsCatalog({ cart, setCart }) {
+function PartsCatalog() {
+  const [parts, setParts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [sortBy, setSortBy] = useState('default');
   const [addedId, setAddedId] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
 
-  const handleAddToCart = (part) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === part.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === part.id ? { ...item, qty: item.qty + 1 } : item
-        );
-      }
-      return [...prev, { ...part, qty: 1 }];
-    });
-    setAddedId(part.id);
-    setTimeout(() => setAddedId(null), 1500);
+  useEffect(() => {
+    fetchParts();
+    fetchCartCount();
+  }, []);
+
+  const fetchCartCount = async () => {
+    try {
+      const res = await api.get('/api/cart');
+      const count = res.data.reduce((sum, item) => sum + item.qty, 0);
+      setCartCount(count);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchParts = async () => {
+    try {
+      const res = await api.get('/api/parts');
+      // Map backend fields to what frontend expects, or use backend fields directly
+      const mappedParts = res.data.map(p => ({
+        id: p.id,
+        name: p.partName,
+        brand: p.brand,
+        category: p.category,
+        price: p.price,
+        stock: p.stockQuantity,
+        compatible: 'Universal' // Mock compatible for now
+      }));
+      setParts(mappedParts);
+    } catch (err) {
+      console.error('Failed to load parts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToCart = async (part) => {
+    try {
+      await api.post('/api/cart', { partId: part.id, quantity: 1 });
+      setAddedId(part.id);
+      fetchCartCount();
+      setTimeout(() => setAddedId(null), 1500);
+    } catch (err) {
+      alert(err.response?.data || 'Failed to add item to cart');
+    }
   };
 
   let filtered = parts.filter((p) => {
@@ -36,7 +72,7 @@ function PartsCatalog({ cart, setCart }) {
   if (sortBy === 'price-desc') filtered = [...filtered].sort((a, b) => b.price - a.price);
   if (sortBy === 'name') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
 
-  const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
+
 
   return (
     <div className="page-container">
@@ -76,8 +112,9 @@ function PartsCatalog({ cart, setCart }) {
 
       <p className="results-count">{filtered.length} part{filtered.length !== 1 ? 's' : ''} found</p>
 
-      {/* Parts Grid */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="empty-state">Loading parts...</div>
+      ) : filtered.length === 0 ? (
         <div className="empty-state">No parts found matching your search.</div>
       ) : (
         <div className="parts-grid">
@@ -97,8 +134,9 @@ function PartsCatalog({ cart, setCart }) {
                 <button
                   className={`add-cart-btn ${addedId === part.id ? 'added' : ''}`}
                   onClick={() => handleAddToCart(part)}
+                  disabled={part.stock <= 0}
                 >
-                  {addedId === part.id ? '✓ Added' : 'Add to Cart'}
+                  {addedId === part.id ? '✓ Added' : part.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
                 </button>
               </div>
             </div>

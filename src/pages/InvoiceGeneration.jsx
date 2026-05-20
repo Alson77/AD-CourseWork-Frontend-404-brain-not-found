@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Plus, Trash2, Printer } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
+import InvoiceEmailPanel from '../components/InvoiceEmailPanel';
 
-const API = 'http://localhost:5000';
-
-const emptyItem = { partName: '', quantity: 1, unitPrice: '' };
+const emptyItem = { partId: '', partName: '', quantity: 1, unitPrice: '' };
 
 export default function InvoiceGeneration() {
-  const [customer, setCustomer] = useState({ name: '', phone: '', date: new Date().toISOString().split('T')[0] });
+  const [parts, setParts] = useState([]);
+  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', date: new Date().toISOString().split('T')[0] });
   const [items, setItems]       = useState([{ ...emptyItem }]);
   const [discount, setDiscount] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('Paid');
+  const [paidAmount, setPaidAmount] = useState('');
   const [saving, setSaving]     = useState(false);
   const [formErr, setFormErr]   = useState('');
   const [invoice, setInvoice]   = useState(null); // saved invoice shown in preview
@@ -26,6 +28,41 @@ export default function InvoiceGeneration() {
 
   const updateItem = (idx, field, val) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+
+  const pickPart = (idx, partId) => {
+    const part = parts.find((p) => String(p.id) === String(partId));
+    if (!part) {
+      updateItem(idx, 'partId', '');
+      return;
+    }
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === idx
+          ? { ...item, partId: String(part.id), partName: part.partName || part.name || '', unitPrice: String(part.price ?? part.Price ?? '') }
+          : item
+      )
+    );
+  };
+
+  useEffect(() => {
+    api.get('/api/parts').then((res) => setParts(res.data || [])).catch(() => setParts([]));
+  }, []);
+
+  const lookupCustomerByPhone = async (phone) => {
+    const trimmed = phone?.trim();
+    if (trimmed.length < 8) return;
+    try {
+      const { data } = await api.get('/api/customers/lookup', { params: { phone: trimmed } });
+      setCustomer((prev) => ({
+        ...prev,
+        name: data.name || prev.name,
+        email: data.email || prev.email,
+        phone: data.phone || prev.phone,
+      }));
+    } catch {
+      /* not registered — keep manual entry */
+    }
+  };
 
   // ── Submit ───────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -47,16 +84,26 @@ export default function InvoiceGeneration() {
       customerPhone: customer.phone.trim(),
       invoiceDate:   new Date(customer.date).toISOString(),
       discount:      discAmt,
+      paymentStatus,
+      paidAmount: paymentStatus === 'Partial' ? parseFloat(paidAmount) || 0 : paymentStatus === 'Paid' ? total : 0,
       items: items.map(it => ({
+        partId: it.partId ? parseInt(it.partId, 10) : null,
         partName:  it.partName.trim(),
         quantity:  parseInt(it.quantity),
         unitPrice: parseFloat(it.unitPrice),
       })),
     };
 
+    if (paymentStatus === 'Partial') {
+      const paid = parseFloat(paidAmount) || 0;
+      if (paid <= 0 || paid >= total) {
+        return setFormErr('For partial payment, enter an amount greater than 0 and less than the total.');
+      }
+    }
+
     try {
       setSaving(true);
-      const res = await axios.post(`${API}/api/invoices`, payload);
+      const res = await api.post('/api/invoices', payload);
       setInvoice(res.data);           // show preview
     } catch (err) {
       setFormErr(err.response?.data?.message || 'Failed to save invoice. Is the backend running?');
@@ -71,9 +118,11 @@ export default function InvoiceGeneration() {
   // ── New invoice ──────────────────────────────────────────────────────
   const handleNew = () => {
     setInvoice(null);
-    setCustomer({ name: '', phone: '', date: new Date().toISOString().split('T')[0] });
+    setCustomer({ name: '', phone: '', email: '', date: new Date().toISOString().split('T')[0] });
     setItems([{ ...emptyItem }]);
     setDiscount('');
+    setPaymentStatus('Paid');
+    setPaidAmount('');
     setFormErr('');
   };
 
@@ -81,9 +130,10 @@ export default function InvoiceGeneration() {
   if (invoice) {
     return (
       <div className="main-content" style={{ maxWidth: '860px' }}>
-        <p className="page-breadcrumb">Sales &amp; Finance &gt; Invoice Generation</p>
+        <p className="page-breadcrumb">Sales &amp; Finance &gt; Invoice #{invoice.id}</p>
 
-        {/* Screen-only controls */}
+        <InvoiceEmailPanel invoiceId={invoice.id} defaultEmail={customer.email} />
+
         <div className="no-print" style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
           <h1 className="page-title" style={{ margin: 0, flex: 1 }}>Invoice #{invoice.id}</h1>
           <button className="btn-primary" id="btn-print-invoice" onClick={handlePrint}>
@@ -97,7 +147,7 @@ export default function InvoiceGeneration() {
           {/* Header */}
           <div className="inv-print-header">
             <div>
-              <h1 className="inv-print-company">AutoParts<span>Plus</span></h1>
+              <h1 className="inv-print-company">Garage<span>Hub</span></h1>
               <p className="inv-print-address">Vehicle Parts &amp; Service Center</p>
             </div>
             <div className="inv-print-meta">
@@ -169,10 +219,10 @@ export default function InvoiceGeneration() {
   // ── Invoice form ─────────────────────────────────────────────────────
   return (
     <div className="main-content" style={{ maxWidth: '900px' }}>
-      <p className="page-breadcrumb">Sales &amp; Finance &gt; Invoice Generation</p>
+      <p className="page-breadcrumb">Sales &amp; Finance &gt; Generate Invoice</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
         <FileText size={22} color="var(--accent)" />
-        <h1 className="page-title" style={{ margin: 0 }}>Generate Invoice</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>Sell Parts &amp; Create Invoice</h1>
       </div>
 
       {formErr && <div className="inv-error-banner" style={{ marginBottom: '1rem' }}>{formErr}</div>}
@@ -188,13 +238,44 @@ export default function InvoiceGeneration() {
             </div>
             <div className="form-group">
               <label htmlFor="cust-phone">Phone Number</label>
-              <input id="cust-phone" value={customer.phone} onChange={e => setCustomer(p => ({ ...p, phone: e.target.value }))} placeholder="98XXXXXXXX" />
+              <input
+                id="cust-phone"
+                value={customer.phone}
+                onChange={e => setCustomer(p => ({ ...p, phone: e.target.value }))}
+                onBlur={(e) => lookupCustomerByPhone(e.target.value)}
+                placeholder="98XXXXXXXX"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="cust-email">Email (for invoice)</label>
+              <input id="cust-email" type="email" value={customer.email} onChange={e => setCustomer(p => ({ ...p, email: e.target.value }))} placeholder="customer@email.com" />
             </div>
           </div>
-          <div className="form-group" style={{ maxWidth: '250px' }}>
-            <label htmlFor="inv-date">Invoice Date</label>
-            <input id="inv-date" type="date" value={customer.date} onChange={e => setCustomer(p => ({ ...p, date: e.target.value }))} />
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="inv-date">Invoice Date</label>
+              <input id="inv-date" type="date" value={customer.date} onChange={e => setCustomer(p => ({ ...p, date: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="payment-status">Payment Status</label>
+              <select id="payment-status" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)}>
+                <option value="Paid">Paid (full)</option>
+                <option value="Credit">Credit (pay later)</option>
+                <option value="Partial">Partial payment</option>
+              </select>
+            </div>
+            {paymentStatus === 'Partial' && (
+              <div className="form-group">
+                <label htmlFor="paid-amount">Amount paid now (Rs.)</label>
+                <input id="paid-amount" type="number" min="0" step="0.01" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} placeholder="0.00" />
+              </div>
+            )}
           </div>
+          {paymentStatus === 'Credit' && (
+            <p style={{ fontSize: '0.85rem', color: '#b45309', marginTop: '0.5rem' }}>
+              Full balance will appear in Credit Management (match customer phone to their profile).
+            </p>
+          )}
         </div>
 
         {/* Items */}
@@ -211,6 +292,7 @@ export default function InvoiceGeneration() {
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>From inventory</th>
                   <th>Part Name</th>
                   <th>Qty</th>
                   <th>Unit Price (Rs.)</th>
@@ -224,6 +306,21 @@ export default function InvoiceGeneration() {
                   return (
                     <tr key={idx}>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{idx + 1}</td>
+                      <td>
+                        <select
+                          className="inv-inline-input"
+                          value={it.partId}
+                          onChange={(e) => pickPart(idx, e.target.value)}
+                          style={{ minWidth: '140px' }}
+                        >
+                          <option value="">— Manual —</option>
+                          {parts.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.partName || p.name} (stock: {p.stockQuantity})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td>
                         <input
                           className="inv-inline-input"

@@ -1,50 +1,91 @@
 import { Link } from 'react-router-dom';
-import { Car, Calendar, Package, ArrowRight } from 'lucide-react';
+import {
+  LayoutDashboard, Users2, Calendar, FileText,
+  BarChart2, UsersRound, Package, Search,
+} from 'lucide-react';
+
+const dashCards = [
+  { title: 'Staff Dashboard', icon: LayoutDashboard, to: '/staff-dashboard' },
+  { title: 'Catalog', icon: Search, to: '/catalog' },
+  { title: 'Appointments', icon: Calendar, to: '/appointment' },
+  { title: 'Sales History', icon: FileText, to: '/sales-history' },
+  { title: 'Admin Dashboard', icon: Users2, to: '/admin-dashboard' },
+  { title: 'Parts Inventory', icon: Package, to: '/catalog' },
+  { title: 'Manage Customers', icon: UsersRound, to: '/customers' },
+  { title: 'Reports', icon: BarChart2, to: '/reports' },
+];
 
 function Home() {
+  const today = new Date().toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  });
+
   return (
-    <div className="page-container">
-      <div className="hero-section">
-        <h1>Vehicle Parts Management System</h1>
-        <p className="hero-subtitle">
-          Manage customer registrations, service appointments, and part requests — all in one place.
-        </p>
+    <div className="main-content">
+      <p className="page-breadcrumb">Welcome</p>
+
+      <div className="home-header">
+        <div>
+          <h1 className="home-title">Welcome back, admin! 👋</h1>
+          <p className="home-subtitle">Here's what's happening with your account today.</p>
+        </div>
+        <Link to="/catalog" className="btn-primary">
+          <Search size={15} /> Buy Part
+        </Link>
       </div>
 
-      <div className="cards-grid">
-        <div className="feature-card">
-          <div className="feature-icon">
-            <Car size={36} />
-          </div>
-          <h2>Customer Registration</h2>
-          <p>Register as a customer and save your vehicle details for faster service.</p>
-          <Link to="/register" className="card-btn">
-            Register Now <ArrowRight size={16} />
+      {/* Dashboard Cards Grid */}
+      <div className="dash-grid">
+        {dashCards.map((card) => (
+          <Link to={card.to} key={card.title} className="dash-card">
+            <div className="dash-card-icon">
+              <card.icon size={26} />
+            </div>
+            <p className="dash-card-title">{card.title}</p>
           </Link>
+        ))}
+      </div>
+
+      {/* Bottom Row */}
+      <div className="home-bottom-grid">
+        {/* Quick Overview */}
+        <div className="info-card">
+          <div className="info-card-header">
+            <span className="info-icon">ℹ</span>
+            <strong>Quick Overview</strong>
+          </div>
+          <div className="overview-rows">
+            <div className="overview-row">
+              <span className="ov-label">YOUR ROLE</span>
+              <span className="badge-blue">ADMINISTRATOR</span>
+            </div>
+            <div className="overview-row">
+              <span className="ov-label">TODAY'S DATE</span>
+              <strong className="ov-value">{today}</strong>
+            </div>
+            <div className="overview-row">
+              <span className="ov-label">SYSTEM STATUS</span>
+              <span className="badge-green">Active</span>
+            </div>
+          </div>
         </div>
 
-        <div className="feature-card">
-          <div className="feature-icon">
-            <Calendar size={36} />
+        {/* Quick Links */}
+        <div className="info-card">
+          <div className="info-card-header">
+            <strong>Quick Links</strong>
           </div>
-          <h2>Book Appointment</h2>
-          <p>Schedule a service appointment at your preferred date and time.</p>
-          <Link to="/appointment" className="card-btn">
-            Book Now <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">
-            <Package size={36} />
-          </div>
-          <h2>Request a Part</h2>
-          <p>Can't find a part? Submit a request and we'll source it for you.</p>
-          <Link to="/part-request" className="card-btn">
-            Request Part <ArrowRight size={16} />
-          </Link>
+          <ul className="quick-links">
+            <li><Link to="/register">Register Customer</Link></li>
+            <li><Link to="/customers">Manage Customers</Link></li>
+            <li><Link to="/appointment">New Appointment</Link></li>
+            <li><Link to="/part-request">Request a Part</Link></li>
+            <li><Link to="/catalog">Browse Catalog</Link></li>
+          </ul>
         </div>
       </div>
+
+      <p className="footer-copy">© 2026 GarageHub. All rights reserved.</p>
     </div>
   );
 }
